@@ -92,6 +92,10 @@ impl CertificateContract {
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
 
+        // Track cert ID by issuer and owner
+        Self::append_cert_id(&env, DataKey::IssuerCertIds(issuer.clone()), id.clone());
+        Self::append_cert_id(&env, DataKey::OwnerCertIds(owner.clone()), id.clone());
+
         // Emit and publish issuance event
         env.events().publish(
             (symbol_short!("issued"), id.clone()),
@@ -498,17 +502,48 @@ impl CertificateContract {
     }
 
     pub fn get_multisig_config(env: Env, issuer: Address) -> MultisigConfig {
+        // Only the issuer or the contract admin may read the multisig config
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("Contract not initialized");
+        let caller_is_admin = issuer == admin;
+        if !caller_is_admin {
+            issuer.require_auth();
+        }
         env.storage()
             .instance()
             .get(&DataKey::MultisigConfig(issuer))
             .expect("Multisig.config not found")
     }
 
-    pub fn get_pending_request(env: Env, request_id: String) -> PendingRequest {
-        env.storage()
+    pub fn get_pending_request(env: Env, request_id: String, caller: Address) -> PendingRequest {
+        caller.require_auth();
+        let request: PendingRequest = env
+            .storage()
             .instance()
             .get(&DataKey::PendingRequest(request_id))
-            .expect("Request not found")
+            .expect("Request not found");
+        // Only the issuer, proposer, or an authorized signer may read the request
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("Contract not initialized");
+        let is_authorized = caller == request.issuer
+            || caller == request.proposer
+            || caller == admin
+            || env
+                .storage()
+                .instance()
+                .get::<_, MultisigConfig>(&DataKey::MultisigConfig(request.issuer.clone()))
+                .map(|c| c.signers.contains(&caller))
+                .unwrap_or(false);
+        if !is_authorized {
+            panic!("Not authorized to view this request");
+        }
+        request
     }
 
     pub fn is_expired(env: Env, request_id: String) -> bool {
@@ -569,7 +604,29 @@ impl CertificateContract {
             .get(&DataKey::Admin)
             .expect("Contract not initialized");
         admin.require_auth();
+
+        // Bump version counter and record the new wasm hash
+        let mut ver: ContractVersion = env
+            .storage()
+            .instance()
+            .get(&DataKey::ContractVersion)
+            .unwrap_or(ContractVersion { version: 0, last_wasm_hash: new_wasm_hash.clone() });
+        ver.version += 1;
+        ver.last_wasm_hash = new_wasm_hash.clone();
+        env.storage().instance().set(&DataKey::ContractVersion, &ver);
+
         env.deployer().update_current_contract_wasm(new_wasm_hash);
+    }
+
+    /// Get the current contract version info
+    pub fn get_version(env: Env) -> ContractVersion {
+        env.storage()
+            .instance()
+            .get(&DataKey::ContractVersion)
+            .unwrap_or(ContractVersion {
+                version: 0,
+                last_wasm_hash: BytesN::from_array(&env, &[0u8; 32]),
+            })
     }
 
     /// Batch verify multiple certificates
@@ -663,6 +720,89 @@ impl CertificateContract {
             cert.expires_at
         } else {
             None
+        }
+    }
+
+    /// Get all certificates issued by a given issuer (paginated)
+    pub fn get_certificates_by_issuer(
+        env: Env,
+        issuer: Address,
+        pagination: Pagination,
+    ) -> CertPaginatedResult {
+        let ids: Vec<String> = env
+            .storage()
+            .instance()
+            .get(&DataKey::IssuerCertIds(issuer))
+            .unwrap_or(Vec::<String>::new(&env));
+        Self::paginate_certificates(&env, ids, pagination)
+    }
+
+    /// Get all certificates owned by a given address (paginated)
+    pub fn get_certificates_by_owner(
+        env: Env,
+        owner: Address,
+        pagination: Pagination,
+    ) -> CertPaginatedResult {
+        let ids: Vec<String> = env
+            .storage()
+            .instance()
+            .get(&DataKey::OwnerCertIds(owner))
+            .unwrap_or(Vec::<String>::new(&env));
+        Self::paginate_certificates(&env, ids, pagination)
+    }
+
+    fn paginate_certificates(
+        env: &Env,
+        cert_ids: Vec<String>,
+        pagination: Pagination,
+    ) -> CertPaginatedResult {
+        let total = cert_ids.len();
+        let mut page_data = Vec::<Certificate>::new(env);
+
+        if pagination.limit == 0 {
+            return CertPaginatedResult {
+                data: page_data,
+                total,
+                page: pagination.page,
+                limit: pagination.limit,
+                has_next: false,
+            };
+        }
+
+        let start = pagination.page.saturating_mul(pagination.limit);
+        let end = total.min(start.saturating_add(pagination.limit));
+        let mut index = start;
+        while index < end {
+            if let Some(id) = cert_ids.get(index) {
+                if let Some(cert) = env
+                    .storage()
+                    .instance()
+                    .get::<_, Certificate>(&DataKey::Certificate(id))
+                {
+                    page_data.push_back(cert);
+                }
+            }
+            index += 1;
+        }
+
+        CertPaginatedResult {
+            data: page_data,
+            total,
+            page: pagination.page,
+            limit: pagination.limit,
+            has_next: end < total,
+        }
+    }
+
+    fn append_cert_id(env: &Env, key: DataKey, cert_id: String) {
+        let mut ids: Vec<String> = env
+            .storage()
+            .instance()
+            .get(&key)
+            .unwrap_or(Vec::<String>::new(env));
+        if !ids.contains(&cert_id) {
+            ids.push_back(cert_id);
+            env.storage().instance().set(&key, &ids);
         }
     }
 
