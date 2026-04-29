@@ -22,6 +22,8 @@ mod admin_multisig_test;
 mod multisig_test;
 #[cfg(test)]
 mod issuer_test;
+#[cfg(test)]
+mod status_test;
 
 #[contract]
 pub struct CertificateContract;
@@ -190,6 +192,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish suspension event
+        env.events().publish(
+            (symbol_short!("suspend"), id.clone()),
+            CertificateSuspendedEvent { id },
+        );
     }
 
     /// Reinstate a suspended certificate
@@ -209,6 +217,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish reinstatement event
+        env.events().publish(
+            (symbol_short!("reinstat"), id.clone()),
+            CertificateReinstatedEvent { id },
+        );
     }
 
     /// Freeze a certificate
@@ -228,6 +242,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish freeze event
+        env.events().publish(
+            (symbol_short!("frozen"), id.clone()),
+            CertificateFrozenEvent { id },
+        );
     }
 
     /// Unfreeze a certificate
@@ -247,6 +267,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish unfreeze event
+        env.events().publish(
+            (symbol_short!("unfrozen"), id.clone()),
+            CertificateUnfrozenEvent { id },
+        );
     }
 
     /// Verify if a certificate is valid (active and not expired)

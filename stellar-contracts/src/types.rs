@@ -52,6 +52,30 @@ pub struct CertificateRevokedEvent {
     pub reason: String,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateSuspendedEvent {
+    pub id: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateReinstatedEvent {
+    pub id: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateFrozenEvent {
+    pub id: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateUnfrozenEvent {
+    pub id: String,
+}
+
 // Multisig Types
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
