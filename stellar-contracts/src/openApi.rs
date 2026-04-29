@@ -798,7 +798,8 @@ impl MultisigCertificateContract {
             };
         }
 
-        let start = pagination.page.saturating_mul(pagination.limit);
+        // Page is 1-indexed. Calculate start index (0-indexed)
+        let start = pagination.page.saturating_sub(1).saturating_mul(pagination.limit);
         let end = total.min(start.saturating_add(pagination.limit));
 
         let mut index = start;

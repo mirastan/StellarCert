@@ -240,7 +240,7 @@ fn test_cancel_request() {
     let admin = Address::generate(&env);
     let issuer = Address::generate(&env);
     let recipient = Address::generate(&env);
-    let proposer = Address::generate(&env); // Same as issuer in this case
+    let _proposer = Address::generate(&env); // Same as issuer in this case
     let signer1 = Address::generate(&env);
     let signer2 = Address::generate(&env);
 
@@ -379,7 +379,7 @@ fn test_expired_request() {
 
     // Manually advance time to expire the request (in a real test, we'd use ledger time)
     // This is a simplified test - in reality we'd check the expiration in the contract
-    let is_expired = client.is_expired(&request_id);
+    let _is_expired = client.is_expired(&request_id);
     // Note: This depends on the current ledger time vs expiration time
     // For this test, we're just checking the function exists
 }
@@ -415,13 +415,13 @@ fn test_get_pending_requests_for_issuer_returns_paginated_results() {
     client.approve_request(&String::from_str(&env, "req-issuer-2"), &signer2);
 
     let first_page =
-        client.get_pending_requests_for_issuer(&issuer, &Pagination { page: 0, limit: 1 });
+        client.get_pending_requests_for_issuer(&issuer, &Pagination { page: 1, limit: 1 });
     assert_eq!(first_page.total, 2);
     assert_eq!(first_page.data.len(), 1);
     assert!(first_page.has_next);
 
     let second_page =
-        client.get_pending_requests_for_issuer(&issuer, &Pagination { page: 1, limit: 1 });
+        client.get_pending_requests_for_issuer(&issuer, &Pagination { page: 2, limit: 1 });
     assert_eq!(second_page.total, 2);
     assert_eq!(second_page.data.len(), 1);
     assert!(!second_page.has_next);
@@ -459,7 +459,7 @@ fn test_get_pending_requests_for_signer_returns_only_pending_requests() {
     client.reject_request(&String::from_str(&env, "req-signer-2"), &signer2, &None);
 
     let requests =
-        client.get_pending_requests_for_signer(&signer3, &Pagination { page: 0, limit: 10 });
+        client.get_pending_requests_for_signer(&signer3, &Pagination { page: 1, limit: 10 });
 
     assert_eq!(requests.total, 2);
     assert_eq!(requests.data.len(), 2);

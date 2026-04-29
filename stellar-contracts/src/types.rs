@@ -27,6 +27,8 @@ pub struct Certificate {
 pub enum DataKey {
     Admin,
     Issuer(Address),
+    IssuerCount,
+    Issuers,
     Certificate(String),
     MultisigConfig(Address),
     IssuerAdmin(Address),
@@ -58,6 +60,30 @@ pub struct CertificateIssuedEvent {
 pub struct CertificateRevokedEvent {
     pub id: String,
     pub reason: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateSuspendedEvent {
+    pub id: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateReinstatedEvent {
+    pub id: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateFrozenEvent {
+    pub id: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateUnfrozenEvent {
+    pub id: String,
 }
 
 // Multisig Types

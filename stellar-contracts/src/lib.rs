@@ -21,7 +21,9 @@ mod admin_multisig_test;
 #[cfg(test)]
 mod multisig_test;
 #[cfg(test)]
-mod issuer_management_test;
+mod issuer_test;
+#[cfg(test)]
+mod status_test;
 
 #[contract]
 pub struct CertificateContract;
@@ -36,7 +38,6 @@ impl CertificateContract {
         env.storage().instance().set(&DataKey::Admin, &admin);
     }
 
-    /// Add an authorized issuer (only admin can call)
     pub fn add_issuer(env: Env, issuer: Address) {
         let admin: Address = env
             .storage()
@@ -44,9 +45,45 @@ impl CertificateContract {
             .get(&DataKey::Admin)
             .expect("Contract not initialized");
         admin.require_auth();
+
+        let key = DataKey::Issuer(issuer.clone());
+        if !env.storage().instance().has(&key) {
+            let count: u32 = env.storage().instance().get(&DataKey::IssuerCount).unwrap_or(0);
+            env.storage().instance().set(&DataKey::IssuerCount, &(count + 1));
+
+            let mut issuers: Vec<Address> = env
+                .storage()
+                .instance()
+                .get(&DataKey::Issuers)
+                .unwrap_or(Vec::new(&env));
+            issuers.push_back(issuer.clone());
+            env.storage().instance().set(&DataKey::Issuers, &issuers);
+        }
+        env.storage().instance().set(&key, &true);
+    }
+
+    /// Check if an address is an authorized issuer
+    pub fn is_issuer(env: Env, address: Address) -> bool {
         env.storage()
             .instance()
-            .set(&DataKey::Issuer(issuer), &true);
+            .get(&DataKey::Issuer(address))
+            .unwrap_or(false)
+    }
+
+    /// Get the total number of authorized issuers
+    pub fn get_issuer_count(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::IssuerCount)
+            .unwrap_or(0)
+    }
+
+    /// Get the list of all authorized issuers
+    pub fn get_issuers(env: Env) -> Vec<Address> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Issuers)
+            .unwrap_or(Vec::new(&env))
     }
 
     /// Remove an authorized issuer (only admin can call)
@@ -170,6 +207,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish suspension event
+        env.events().publish(
+            (symbol_short!("suspend"), id.clone()),
+            CertificateSuspendedEvent { id },
+        );
     }
 
     /// Reinstate a suspended certificate
@@ -189,6 +232,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish reinstatement event
+        env.events().publish(
+            (symbol_short!("reinstat"), id.clone()),
+            CertificateReinstatedEvent { id },
+        );
     }
 
     /// Freeze a certificate
@@ -208,6 +257,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish freeze event
+        env.events().publish(
+            (symbol_short!("frozen"), id.clone()),
+            CertificateFrozenEvent { id },
+        );
     }
 
     /// Unfreeze a certificate
@@ -227,6 +282,12 @@ impl CertificateContract {
         env.storage()
             .instance()
             .set(&DataKey::Certificate(id.clone()), &cert);
+
+        // Emit and publish unfreeze event
+        env.events().publish(
+            (symbol_short!("unfrozen"), id.clone()),
+            CertificateUnfrozenEvent { id },
+        );
     }
 
     /// Verify if a certificate is valid (active and not expired)
@@ -871,7 +932,8 @@ impl CertificateContract {
             };
         }
 
-        let start = pagination.page.saturating_mul(pagination.limit);
+        // Page is 1-indexed. Calculate start index (0-indexed)
+        let start = pagination.page.saturating_sub(1).saturating_mul(pagination.limit);
         let end = total.min(start.saturating_add(pagination.limit));
 
         let mut index = start;

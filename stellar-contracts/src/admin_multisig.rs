@@ -59,6 +59,13 @@ pub struct ProposalApprovedEvent {
     pub threshold: u32,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProposalCanceledEvent {
+    pub proposal_id: String,
+    pub proposer: Address,
+}
+
 #[contract]
 pub struct AdminMultisigContract;
 
@@ -163,6 +170,10 @@ impl AdminMultisigContract {
             return AdminProposalStatus::Expired;
         }
 
+        if proposal.proposer == approver {
+            panic!("Proposer cannot approve their own action");
+        }
+
         if proposal.approvals.contains(&approver) {
             panic!("Already approved by this signer");
         }
@@ -193,6 +204,36 @@ impl AdminMultisigContract {
         }
 
         status
+    }
+
+    pub fn cancel_proposal(env: Env, proposal_id: String, proposer: Address) {
+        proposer.require_auth();
+
+        let proposal_key = AdminMultisigDataKey::AdminProposal(proposal_id.clone());
+        let mut proposal: AdminProposal = env
+            .storage()
+            .instance()
+            .get(&proposal_key)
+            .expect("Proposal not found");
+
+        if proposal.proposer != proposer {
+            panic!("Only proposer can cancel");
+        }
+
+        if proposal.status != AdminProposalStatus::Pending {
+            panic!("Proposal is not pending");
+        }
+
+        proposal.status = AdminProposalStatus::Rejected;
+        env.storage().instance().set(&proposal_key, &proposal);
+
+        env.events().publish(
+            (symbol_short!("proposal"), symbol_short!("canceled")),
+            ProposalCanceledEvent {
+                proposal_id,
+                proposer,
+            },
+        );
     }
 
     pub fn get_proposal(env: Env, proposal_id: String) -> AdminProposal {
