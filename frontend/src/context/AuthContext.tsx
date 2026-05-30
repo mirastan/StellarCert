@@ -104,6 +104,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Check if user is authenticated (has valid token and user data)
   const isAuthenticated = !!user && !!tokenStorage.getAccessToken() && !isTokenExpired(tokenStorage.getAccessToken()!);
 
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-950">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider
       value={{
