@@ -248,7 +248,8 @@ const CertificateTable = ({ onError, onSuccess }: CertificateTableProps) => {
     const confirmFreeze = async () => {
         if (!freezingCertId) return;
         try {
-            await certificateApi.freeze(freezingCertId, freezeReason, freezeDuration);
+            const durationDays = Math.max(1, Number.isFinite(freezeDuration) ? Math.trunc(freezeDuration) : 1);
+            await certificateApi.freeze(freezingCertId, freezeReason, durationDays);
             onSuccess?.('Certificate frozen successfully');
             setShowFreezeModal(false);
             setFreezeReason('');

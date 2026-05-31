@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Award, Eye, Layout, XCircle } from 'lucide-react';
 import { createCertificate, fetchDefaultTemplate, fetchUserByEmail, templateApi, CertificateTemplate } from '../api';
 import CertificatePreviewModal, { CertificatePreviewData } from '../components/CertificatePreviewModal';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const GRADE_OPTIONS = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'Pass', 'Distinction', 'Merit'];
@@ -32,13 +31,7 @@ const formatPreviewDate = (value: string) => {
 
 const IssueCertificate = () => {
   const { user } = useAuth();
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
-const [templatesError, setTemplatesError] = useState('');
-  const [formData, setFormData] = useState<IssueCertificateFormData>({
+  const initialFormData: IssueCertificateFormData = {
     recipientName: '',
     recipientEmail: '',
     courseName: '',
@@ -47,9 +40,14 @@ const [templatesError, setTemplatesError] = useState('');
     issueDate: '',
     expiryDate: '',
     templateId: ''
-  });
-
-  const navigate = useNavigate();
+  };
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+const [templatesError, setTemplatesError] = useState('');
+  const [formData, setFormData] = useState<IssueCertificateFormData>(initialFormData);
 
   useEffect(() => {
     if (user) {
@@ -204,7 +202,12 @@ const [templatesError, setTemplatesError] = useState('');
         return;
       }
       setIsPreviewOpen(false);
-      navigate("/");
+      setFormData({
+        ...initialFormData,
+        issuerName: formData.issuerName,
+        templateId: formData.templateId
+      });
+      setError('');
     } catch (error: unknown) {
       console.error('Error issuing certificate:', error);
       setError(error instanceof Error ? error.message : 'Failed to issue certificate');
