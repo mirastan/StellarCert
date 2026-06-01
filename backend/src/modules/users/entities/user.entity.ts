@@ -77,6 +77,10 @@ export class User {
   @Column({ nullable: true })
   passwordResetToken: string;
 
+  @Column({ nullable: true })
+  @Index()
+  passwordResetTokenHash: string;
+
   @Column({ type: 'timestamp', nullable: true })
   passwordResetExpires: Date;
 

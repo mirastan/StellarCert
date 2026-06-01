@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Certificate } from '../entities/certificate.entity';
 import { WebhooksService } from '../../webhooks/webhooks.service';
 import { WebhookEvent } from '../../webhooks/entities/webhook-subscription.entity';
+import { UserRole } from '../../users/entities/user.entity';
+import { CertificateStatus } from '../constants/certificate-status.enum';
 
 @Injectable()
 export class CertificateRevocationService {
@@ -24,7 +26,7 @@ export class CertificateRevocationService {
       throw new ConflictException(`Certificate with ID ${id} not found`);
     }
 
-    certificate.status = 'revoked';
+    certificate.status = CertificateStatus.REVOKED;
     if (reason) {
       certificate.metadata = {
         ...certificate.metadata,
@@ -61,13 +63,13 @@ export class CertificateRevocationService {
       throw new ConflictException(`Certificate with ID ${id} not found`);
     }
 
-    if (certificate.status !== 'active') {
+    if (certificate.status !== CertificateStatus.ACTIVE) {
       throw new ConflictException(
         `Certificate must be active to freeze. Current status: ${certificate.status}`,
       );
     }
 
-    certificate.status = 'frozen';
+    certificate.status = CertificateStatus.FROZEN;
     if (reason) {
       certificate.metadata = {
         ...certificate.metadata,
@@ -104,13 +106,13 @@ export class CertificateRevocationService {
       throw new ConflictException(`Certificate with ID ${id} not found`);
     }
 
-    if (certificate.status !== 'frozen') {
+    if (certificate.status !== CertificateStatus.FROZEN) {
       throw new ConflictException(
         `Certificate must be frozen to unfreeze. Current status: ${certificate.status}`,
       );
     }
 
-    certificate.status = 'active';
+    certificate.status = CertificateStatus.ACTIVE;
     if (reason) {
       certificate.metadata = {
         ...certificate.metadata,
@@ -141,6 +143,8 @@ export class CertificateRevocationService {
   async bulkRevoke(
     certificateIds: string[],
     reason?: string,
+    issuerId?: string,
+    userRole?: string,
   ): Promise<{
     revoked: Certificate[];
     failed: { id: string; error: string }[];
@@ -150,8 +154,35 @@ export class CertificateRevocationService {
 
     for (const id of certificateIds) {
       try {
-        const certificate = await this.revoke(id, reason);
-        revoked.push(certificate);
+        const certificate = await this.certificateRepository.findOne({
+          where: { id },
+        });
+
+        if (!certificate) {
+          throw new ConflictException(`Certificate with ID ${id} not found`);
+        }
+
+        if (userRole !== UserRole.ADMIN) {
+          if (!issuerId) {
+            failed.push({
+              id,
+              error: 'Issuer identity is required to revoke certificate',
+            });
+            continue;
+          }
+
+          if (certificate.issuerId !== issuerId) {
+            failed.push({
+              id,
+              error:
+                'Unauthorized to revoke certificate issued by another issuer',
+            });
+            continue;
+          }
+        }
+
+        const revokedCertificate = await this.revoke(id, reason);
+        revoked.push(revokedCertificate);
       } catch (error) {
         failed.push({
           id,

@@ -138,9 +138,12 @@ export class UsersService {
       passwordResetToken,
       this.SALT_ROUNDS,
     );
+    const passwordResetTokenHash =
+      this.hashPasswordResetLookupToken(passwordResetToken);
 
     await this.userRepository.update(user.id, {
       passwordResetToken: hashedPasswordResetToken,
+      passwordResetTokenHash,
       passwordResetExpires,
     });
 
@@ -162,24 +165,10 @@ export class UsersService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const usersWithResetTokens =
-      await this.userRepository.findUsersWithPasswordResetTokens();
-    let user: User | null = null;
-
-    for (const candidate of usersWithResetTokens) {
-      if (!candidate.passwordResetToken) {
-        continue;
-      }
-
-      const tokenMatches = await bcrypt.compare(
-        token,
-        candidate.passwordResetToken,
-      );
-      if (tokenMatches) {
-        user = candidate;
-        break;
-      }
-    }
+    const passwordResetTokenHash = this.hashPasswordResetLookupToken(token);
+    const user = await this.userRepository.findByPasswordResetTokenHash(
+      passwordResetTokenHash,
+    );
 
     if (!user) {
       throw new BadRequestException('Invalid reset token');
@@ -194,8 +183,9 @@ export class UsersService {
 
     await this.userRepository.update(user.id, {
       password: hashedPassword,
-      passwordResetToken: undefined as any,
-      passwordResetExpires: undefined as any,
+      passwordResetToken: null as any,
+      passwordResetTokenHash: null as any,
+      passwordResetExpires: null as any,
     });
 
     this.logger.log(`Password reset completed for: ${user.email}`);
@@ -406,6 +396,10 @@ export class UsersService {
 
   private generateToken(): string {
     return crypto.randomBytes(32).toString('hex');
+  }
+
+  private hashPasswordResetLookupToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   private async queueVerificationEmail(

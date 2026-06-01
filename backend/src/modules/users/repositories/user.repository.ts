@@ -68,6 +68,14 @@ export class UserRepository {
     });
   }
 
+  async findByPasswordResetTokenHash(
+    passwordResetTokenHash: string,
+  ): Promise<User | null> {
+    return this.repository.findOne({
+      where: { passwordResetTokenHash },
+    });
+  }
+
   async findByRefreshToken(refreshToken: string): Promise<User | null> {
     return this.repository.findOne({ where: { refreshToken } });
   }

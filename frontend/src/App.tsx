@@ -13,6 +13,7 @@ const IssueCertificate = lazy(() => import("./pages/IssueCertificate"));
 const VerifyCertificate = lazy(() => import("./pages/VerifyCertificate"));
 const CertificateWallet = lazy(() => import("./pages/CertificateWallet"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const Login = lazy(() => import("./pages/Login"));
 const RevokeCertificatePage = lazy(() => import("./pages/RevokeCertificate"));
 const IssuerProfile = lazy(() => import("./pages/IssuerProfile"));
@@ -47,6 +48,7 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/verify" element={<VerifyCertificate />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="/profile" element={<IssuerProfile />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route

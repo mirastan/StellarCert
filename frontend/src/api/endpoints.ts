@@ -27,6 +27,7 @@ import {
   RejectTransferDto,
   ForgotPasswordRequest,
   ResetPasswordRequest,
+  VerifyEmailRequest,
 } from "./types";
 import { tokenStorage } from "./tokens";
 
@@ -192,7 +193,7 @@ export async function apiClient<T>(
       );
 
       console.warn(`API request failed (attempt ${attempt}/${config.maxRetries + 1}), retrying in ${delay}ms:`, error);
-      
+
       await sleep(delay);
       return attemptRequest(attempt + 1, hasTriedRefresh);
     }
@@ -925,6 +926,14 @@ export const authApi = {
   },
   resetPassword: async (data: ResetPasswordRequest): Promise<{ message: string }> => {
     return apiClient("/users/reset-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+  verifyEmail: async (
+    data: VerifyEmailRequest,
+  ): Promise<{ message: string }> => {
+    return apiClient("/users/verify-email", {
       method: "POST",
       body: JSON.stringify(data),
     });

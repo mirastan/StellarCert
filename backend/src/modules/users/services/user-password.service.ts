@@ -14,6 +14,7 @@ import {
 } from '../dto/change-password.dto';
 import { EmailQueueService } from '../../email/email-queue.service';
 import { LoggingService } from '../../../common/logging/logging.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UserPasswordService {
@@ -84,7 +85,12 @@ export class UserPasswordService {
     );
 
     await this.userRepository.update(user.id, {
-      passwordResetToken,
+      passwordResetToken: await bcrypt.hash(
+        passwordResetToken,
+        this.SALT_ROUNDS,
+      ),
+      passwordResetTokenHash:
+        this.hashPasswordResetLookupToken(passwordResetToken),
       passwordResetExpires,
     });
 
@@ -106,7 +112,9 @@ export class UserPasswordService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const user = await this.userRepository.findByPasswordResetToken(token);
+    const user = await this.userRepository.findByPasswordResetTokenHash(
+      this.hashPasswordResetLookupToken(token),
+    );
 
     if (!user) {
       throw new BadRequestException('Invalid reset token');
@@ -121,8 +129,9 @@ export class UserPasswordService {
 
     await this.userRepository.update(user.id, {
       password: hashedPassword,
-      passwordResetToken: undefined as any,
-      passwordResetExpires: undefined as any,
+      passwordResetToken: null as any,
+      passwordResetTokenHash: null as any,
+      passwordResetExpires: null as any,
     });
 
     this.logger.log(`Password reset completed for: ${user.email}`);
@@ -131,7 +140,11 @@ export class UserPasswordService {
   }
 
   private generateToken(): string {
-    return require('crypto').randomBytes(32).toString('hex');
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  private hashPasswordResetLookupToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   private async queuePasswordResetEmail(

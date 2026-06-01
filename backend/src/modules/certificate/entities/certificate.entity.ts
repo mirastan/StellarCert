@@ -25,6 +25,12 @@ export interface CertificateMetadata {
   grade?: string;
   hours?: number;
   issuedByOrganization?: string;
+  revocationReason?: string;
+  revokedAt?: Date;
+  freezeReason?: string;
+  frozenAt?: Date;
+  unfreezeReason?: string;
+  unfrozenAt?: Date;
   additionalFields?: Record<string, unknown>;
 }
 

@@ -346,7 +346,7 @@ export class CertificateController {
   async bulkRevoke(
     @Body('certificateIds') certificateIds: string[],
     @Body('reason') reason?: string,
-    @CurrentUser('sub') issuerId?: string,
+    @CurrentUser('id') issuerId?: string,
     @CurrentUser('role') userRole?: string,
   ) {
     return this.certificateService.bulkRevoke(
