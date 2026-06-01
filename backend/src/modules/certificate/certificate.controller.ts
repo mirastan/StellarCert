@@ -15,8 +15,9 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { CertificateService } from './certificate.service';
+import { CertificatePdfService } from './services/pdf.service';
 import {
   ApiTags,
   ApiOperation,
@@ -57,6 +58,7 @@ export class CertificateController {
   constructor(
     private readonly certificateService: CertificateService,
     private readonly statsService: CertificateStatsService,
+    private readonly pdfService: CertificatePdfService,
   ) {}
 
   // ─── List / Search ──────────────────────────────────────────────────────────
@@ -207,6 +209,22 @@ export class CertificateController {
   }
 
   // ─── Single Certificate ───────────────────────────────────────────────────────
+
+  @Get(':id/pdf')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Download certificate as PDF' })
+  @ApiParam({ name: 'id', description: 'Certificate UUID' })
+  @ApiResponse({ status: 200, description: 'PDF file stream' })
+  async getCertificatePdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const certificate = await this.certificateService.findOne(id);
+    const buffer = await this.pdfService.generate(certificate);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${certificate.certificateId}.pdf"`);
+    res.end(buffer);
+  }
 
   @Get(':id/qr')
   @ApiOperation({ summary: 'Get QR code URL for a certificate' })

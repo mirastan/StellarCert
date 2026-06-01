@@ -9,6 +9,7 @@ import { Verification } from './entities/verification.entity';
 import { CertificateService } from './certificate.service';
 import { CertificateStatsService } from './services/stats.service';
 import { DuplicateDetectionService } from './services/duplicate-detection.service';
+import { CertificatePdfService } from './services/pdf.service';
 
 import { CertificateController } from './certificate.controller';
 import { DuplicateDetectionController } from './controllers/duplicate-detection.controller';
@@ -47,6 +48,7 @@ import { EmailModule } from '../email/email.module';
     CertificateService,
     CertificateStatsService,
     DuplicateDetectionService,
+    CertificatePdfService,
   ],
   exports: [CertificateService, CertificateStatsService],
 })
