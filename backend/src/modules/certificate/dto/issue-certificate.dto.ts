@@ -19,6 +19,14 @@ export class IssueCertificateDto {
   @IsUUID()
   issuerId: string;
 
+  @ApiPropertyOptional({
+    description: 'Recipient user UUID (if recipient is a registered user)',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  recipientId?: string;
+
   @ApiProperty({ description: 'Recipient email address' })
   @IsEmail()
   recipientEmail: string;

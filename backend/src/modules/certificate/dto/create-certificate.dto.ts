@@ -18,6 +18,14 @@ export class CreateCertificateDto {
   @IsUUID()
   issuerId: string;
 
+  @ApiPropertyOptional({
+    description: 'Optional recipient user UUID',
+    example: '7c2e9b1f-3d4a-4e5b-9c8d-1a2b3c4d5e6f',
+  })
+  @IsOptional()
+  @IsUUID()
+  recipientId?: string;
+
   @ApiProperty({
     description: 'Recipient email address',
     example: 'recipient@example.com',

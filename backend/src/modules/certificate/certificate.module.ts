@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { Certificate } from './entities/certificate.entity';
 import { Verification } from './entities/verification.entity';
+import { User } from '../users/entities/user.entity';
 
 import { CertificateService } from './certificate.service';
 import { CertificateStatsService } from './services/stats.service';
@@ -25,7 +26,7 @@ import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Certificate, Verification]),
+    TypeOrmModule.forFeature([Certificate, Verification, User]),
     CacheModule.register({
       ttl: 300,
       max: 100,
