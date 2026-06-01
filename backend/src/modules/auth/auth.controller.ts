@@ -79,6 +79,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @RateLimit({ limit: 10, windowMs: 60_000, keyBy: 'ip' })
   @Public()
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() refreshDto: RefreshDto): Promise<AuthResponseDto> {
