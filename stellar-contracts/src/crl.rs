@@ -40,6 +40,7 @@ pub struct CRLInfo {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DataKey {
     Issuer,
+    Admin,
     Info,
     Revocation(String),
     RevokedCertificates,
@@ -85,7 +86,23 @@ impl CRLContract {
         _serial_number: Option<String>,
     ) {
         let issuer = Self::get_issuer(&env);
-        issuer.require_auth();
+        // Allow either the configured issuer or an admin to authorize revocations
+        let invoker = env.invoker();
+        let mut authorized = false;
+        if invoker == issuer {
+            authorized = true;
+        } else if let Some(admin) = Self::get_admin(&env) {
+            if invoker == admin {
+                authorized = true;
+            }
+        }
+
+        if !authorized {
+            panic!("Only issuer or admin can revoke");
+        }
+
+        // Require auth from the invoker
+        invoker.require_auth();
 
         // Verify the certificate exists in the CertificateContract (#414)
         let cert_contract: Address = env
@@ -113,7 +130,7 @@ impl CRLContract {
             reason: reason as u32,
             issuer: issuer.clone(),
             revocation_date: env.ledger().timestamp(),
-            revoked_by: issuer,
+            revoked_by: invoker.clone(),
         };
 
         env.storage()
@@ -210,6 +227,13 @@ impl CRLContract {
         env.storage().instance().set(&DataKey::Info, &crl_info);
     }
 
+    /// Set an admin address that can authorize revocations/unrevocations
+    pub fn set_admin(env: Env, admin: Address) {
+        let issuer = Self::get_issuer(&env);
+        issuer.require_auth();
+        env.storage().instance().set(&DataKey::Admin, &admin);
+    }
+
     pub fn needs_update(env: Env) -> bool {
         env.ledger().timestamp() >= Self::get_crl_info_internal(&env).next_update
     }
@@ -226,6 +250,10 @@ impl CRLContract {
             .instance()
             .get(&DataKey::Info)
             .expect("CRL info not found")
+    }
+
+    fn get_admin(env: &Env) -> Option<Address> {
+        env.storage().instance().get(&DataKey::Admin)
     }
 
     fn get_revoked_certificate_ids(env: &Env) -> Vec<String> {
