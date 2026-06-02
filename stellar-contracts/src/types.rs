@@ -47,6 +47,7 @@ pub enum DataKey {
     IssuerAdmin(Address),
     PendingRequest(String),
     IssuerRequestIds(Address),
+    CertificateContract,
     SignerRequestIds(Address),
     IssuerCertIds(Address),
     OwnerCertIds(Address),

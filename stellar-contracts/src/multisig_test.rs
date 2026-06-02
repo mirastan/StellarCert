@@ -1,6 +1,6 @@
 #![cfg(test)]
 use super::multisig::*;
-use crate::{OptionalRequestStatus, Pagination, RequestStatus};
+use crate::{CertificateContract, CertificateContractClient, OptionalRequestStatus, Pagination, RequestStatus};
 use soroban_sdk::{testutils::Address as _, vec, Address, Env, String};
 
 #[test]
@@ -222,6 +222,14 @@ fn test_issue_approved_certificate() {
     client.approve_request(&request_id, &signer1);
     client.approve_request(&request_id, &signer2);
 
+    // Configure the external certificate contract and register the issuer
+    let certificate_contract_id = env.register_contract(None, CertificateContract);
+    let certificate_contract_address = Address::Contract(certificate_contract_id.clone());
+    let certificate_client = CertificateContractClient::new(&env, &certificate_contract_id);
+    certificate_client.initialize(&admin);
+    certificate_client.add_issuer(&issuer);
+    client.set_certificate_contract(&admin, &certificate_contract_address);
+
     // Issue the certificate
     let success = client.issue_approved_certificate(&request_id);
     assert!(success);
@@ -229,6 +237,9 @@ fn test_issue_approved_certificate() {
     // Check the request status
     let request = client.get_pending_request(&request_id);
     assert_eq!(request.status, RequestStatus::Issued);
+
+    // Verify the certificate was minted in CertificateContract
+    assert!(certificate_client.certificate_exists(&request_id));
 }
 
 #[test]

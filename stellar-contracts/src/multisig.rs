@@ -1,4 +1,4 @@
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Env, IntoVal, String, Symbol, Vec};
 
 use crate::{
     DataKey, MultisigConfig, OptionalRequestStatus, PaginatedResult, Pagination, PendingRequest,
@@ -324,13 +324,47 @@ impl MultisigCertificateContract {
             return false;
         }
 
-        // This would typically call the main certificate contract
-        // For now, we just update the status
+        request.issuer.require_auth();
+
+        let certificate_contract: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::CertificateContract)
+            .expect("Certificate contract not configured");
+
+        // Issue the actual certificate through the external CertificateContract
+        let _: () = env.invoke_contract(
+            &certificate_contract,
+            &Symbol::new(&env, "issue_certificate"),
+            soroban_sdk::vec![
+                &env,
+                request.id.clone().into_val(&env),
+                request.issuer.clone().into_val(&env),
+                request.recipient.clone().into_val(&env),
+                request.metadata.clone().into_val(&env),
+                Some(request.expires_at).into_val(&env),
+            ],
+        );
+
         request.status = RequestStatus::Issued;
         env.storage()
             .instance()
             .set(&DataKey::PendingRequest(request_id), &request);
         true
+    }
+
+    pub fn set_certificate_contract(env: Env, admin: Address, certificate_contract: Address) {
+        admin.require_auth();
+        env.storage()
+            .instance()
+            .set(&DataKey::CertificateContract, &certificate_contract);
+    }
+
+    pub fn get_certificate_contract(env: Env) -> Address {
+        env.storage()
+            .instance()
+            .get(&DataKey::CertificateContract)
+            .expect("Certificate contract not configured")
     }
 
     /// Get a pending request by ID

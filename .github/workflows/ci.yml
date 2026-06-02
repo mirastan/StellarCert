@@ -32,49 +32,69 @@ jobs:
             contracts:
               - 'stellar-contracts/**'
 
-  frontend:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            frontend/package-lock.json
-      - name: Install frontend dependencies
-        run: npm ci
-      - name: Build frontend
-        run: npm run build
+    frontend:
+     needs: changes
+     if: needs.changes.outputs.frontend == 'true'
+     runs-on: ubuntu-latest
+     defaults:
+       run:
+         working-directory: frontend
+     steps:
+       - uses: actions/checkout@v4
+       - uses: actions/setup-node@v4
+         with:
+           node-version: 20
+           cache: npm
+           cache-dependency-path: |
+             package-lock.json
+             frontend/package-lock.json
+       - name: Install frontend dependencies
+         run: npm ci
+       - name: Check frontend environment variables
+         run: |
+           node -e "
+           const required = ['VITE_API_URL'];
+           const missing = required.filter(key => !process.env[key]);
+           if (missing.length) {
+             console.error('Missing required environment variables:', missing.join(', '));
+             process.exit(1);
+           }
+           "
+       - name: Build frontend
+         run: npm run build
 
-  backend:
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            backend/package-lock.json
-      - name: Install backend dependencies
-        run: npm ci
-      - name: Typecheck backend
-        run: npm run typecheck
-      - name: Build backend
-        run: npm run build
+   backend:
+     needs: changes
+     if: needs.changes.outputs.backend == 'true'
+     runs-on: ubuntu-latest
+     defaults:
+       run:
+         working-directory: backend
+     steps:
+       - uses: actions/checkout@v4
+       - uses: actions/setup-node@v4
+         with:
+           node-version: 20
+           cache: npm
+           cache-dependency-path: |
+             package-lock.json
+             backend/package-lock.json
+       - name: Install backend dependencies
+         run: npm ci
+       - name: Validate backend environment
+         run: |
+           node -e "
+           const required = ['STELLAR_ISSUER_SECRET_KEY', 'STELLAR_ISSUER_PUBLIC_KEY'];
+           const missing = required.filter(key => !process.env[key]);
+           if (missing.length) {
+             console.error('Missing required environment variables:', missing.join(', '));
+             process.exit(1);
+           }
+           "
+       - name: Typecheck backend
+         run: npm run typecheck
+       - name: Build backend
+         run: npm run build
 
   contracts:
     needs: changes
